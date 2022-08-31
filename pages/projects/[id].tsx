@@ -15,7 +15,10 @@ const { DirectoryTree } = Tree;
 const { Header, Footer, Sider, Content } = Layout;
 
 function schemaTypeConvert(type: any) {
-  const convertMap = new Map([["integer", "number"]]);
+  const convertMap = new Map([
+    ["integer", "number"],
+    ["text", "string"],
+  ]);
   return convertMap.get(type) || type;
 }
 
@@ -62,9 +65,9 @@ function parseQueryParam(arr = []) {
       result += `  // ${item.description}\n`;
     }
     if (item.name) {
-      result += `  ${item.name}${item.required ? "" : "?"}:${schemaTypeConvert(
-        item.type
-      )};\n`;
+      result += `  ${item.name}${item.required ? "" : "?"}:${
+        schemaTypeConvert(item.type) || "string"
+      };\n`;
     }
   });
   result += "}\n";
@@ -95,18 +98,25 @@ function parseJsonSchema(schema: any, schemasMap: Map<string, any>) {
       if (properties) {
         for (let key in properties) {
           const current = properties[key];
+          if (current["x-tmp-pending-properties"]) {
+            continue;
+          }
           const { title, description, type } = current;
           const tabWidth = getTabWidth(level);
           const requiredMark = required && required.includes(key) ? "" : "?";
           let okType = "";
           if (Array.isArray(type)) {
-            const types = Array.from(new Set(type.map((i) => schemaTypeConvert(i)) as string[]).values());
+            const types = Array.from(
+              new Set(
+                type.map((i) => schemaTypeConvert(i)) as string[]
+              ).values()
+            );
             okType = types.map((i) => schemaTypeConvert(i)).join(` | `) + ";\n";
           } else if (type === "object") {
             okType = "{\n";
           } else if (type === "array") {
             okType = "[{\n";
-          } else if(current.$ref){
+          } else if (current.$ref) {
             okType = "{\n";
           } else {
             okType = schemaTypeConvert(type) + ";\n";
@@ -133,7 +143,7 @@ function parseJsonSchema(schema: any, schemasMap: Map<string, any>) {
               parse(current.items, level + 1);
             }
             result += getTabWidth(level) + "}]\n";
-          }else if(current.$ref){
+          } else if (current.$ref) {
             const refStrId = current.$ref || "";
             const id = refStrId.replace("#/definitions/", "");
             const refSchema = schemasMap.get(id);
@@ -172,7 +182,6 @@ const ProjectDetailPage: NextPage = () => {
   async function queryProjectSchemas(id: string) {
     const res = await getSchemas(id);
     if (res.success) {
-      console.log("Schemas: ", res.data);
       const map = new Map();
       if (Array.isArray(res.data)) {
         res.data.forEach((item: any) => {
@@ -256,12 +265,12 @@ const ProjectDetailPage: NextPage = () => {
   const [apiInfo, setApiInfo] = useState<any>({});
 
   function handleTreeSelect(selectedKeys: any[], info: any) {
-    console.log(selectedKeys, info);
     const nodeType = info.node.type;
     if (nodeType === "apiDetail") {
       const { parameters, requestBody, responses } = info.node?.detail;
       setApiInfo({ parameters, requestBody, responses });
       setCurrentApiNode(info.node);
+      console.log("api-detail:", info.node);
     }
   }
 
@@ -292,17 +301,25 @@ const ProjectDetailPage: NextPage = () => {
   }
 
   return (
-    <Layout className="project-detail-page w-full h-screen">
-      <Header style={{ height: "60px", backgroundColor: "#fff" }}>
+    <div className="project-detail-page w-full h-screen flex flex-col">
+      <div style={{ height: "60px", backgroundColor: "#fff" }}>
         <HeaderNaviBar></HeaderNaviBar>
-      </Header>
-      <Layout>
-        <Sider
-          width={280}
+      </div>
+      <div
+        className="flex h-full"
+        style={{
+          height: "calc(100% - 60px)",
+        }}
+      >
+        <div
+          className="h-full overflow-y-auto flex-shrink-0"
           style={{
             backgroundColor: "#fff",
             overflow: "auto",
             padding: "15px",
+            minWidth: "200px",
+            borderRight: "1px solid #e8e8e8",
+            transition: "all 0.5s ease",
           }}
         >
           <DirectoryTree
@@ -313,11 +330,13 @@ const ProjectDetailPage: NextPage = () => {
             }}
             treeData={hydratedTreeData}
           />
-        </Sider>
-        <Content
+        </div>
+        <div
+          className="w-full h-full overflow-auto"
           style={{
             overflow: "auto",
             padding: "15px",
+            backgroundColor: "#F1F3F4",
           }}
         >
           {currentApiNode?.detail ? (
@@ -384,14 +403,14 @@ const ProjectDetailPage: NextPage = () => {
             <Empty
               image="https://gw.alipayobjects.com/zos/antfincdn/ZHrcdLPrvN/empty.svg"
               imageStyle={{
-                height: 200,
+                height: "200px",
               }}
               description={<span>还未选择API，请点击左侧目录树选择API</span>}
             ></Empty>
           )}
-        </Content>
-      </Layout>
-    </Layout>
+        </div>
+      </div>
+    </div>
   );
 };
 

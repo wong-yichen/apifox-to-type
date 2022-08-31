@@ -20,8 +20,8 @@ export async function getHeaders(config: RequestConfig) {
   } as any;
   headers["X-Client-Version"] = "2.1.28-alpha.3";
   headers["X-Client-Mode"] = "web";
-  headers["referer"] = "https://www.apifox.cn/";
-  headers["origin"] = "https://www.apifox.cn/";
+  // headers["referer"] = "https://www.apifox.cn/";
+  // headers["origin"] = "https://www.apifox.cn/";
   if (config.needToken) {
     const token = window.localStorage.getItem("token");
     if (token) {
